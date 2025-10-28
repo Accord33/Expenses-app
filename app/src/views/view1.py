@@ -1,15 +1,18 @@
 import flet as ft
 from components.navigation import create_navigation_bar
+from components.image_upload import ImageUploadHandler
+from utils.storage import StoragePathManager
+from pathlib import Path
 
 
 class ContentButton:
     def __init__(self, page: ft.Page):
         self.page = page
         self.button_list = []
-        name_list = ["食費", "交通費", "娯楽費", "日用品"]
+        self.name_list = ["食費", "交通費", "娯楽費", "日用品"]
         self.focus_index = 0
 
-        for i, name in enumerate(name_list):
+        for i, name in enumerate(self.name_list):
             self.button_list.append(
                 ft.Container(
                     content=ft.CupertinoButton(
@@ -39,30 +42,30 @@ class ContentButton:
 
 def create_view1(page: ft.Page):
     selected_control = ft.Column()
-
-    def pick_files_result(e: ft.FilePickerResultEvent):
-        selected_files.value = (
-            ", ".join(map(lambda f: f.name, e.files)) if e.files else "Cancelled!"
-        )
-        upload_url = page.get_upload_url(f"uploads/{e.files[0].name}", 60)
-        e.files[0].upload_url = upload_url
-        print("upload_url:", upload_url)
-        pick_files_dialog.upload(e.files[0])
-        print("Uploaded file to:", upload_url)
-        selected_files.update()
-
-    pick_files_dialog = ft.FilePicker(on_result=pick_files_result)
-    selected_files = ft.Text()
+    
+    # ストレージパスの取得と初期化
+    storage_paths = StoragePathManager.get_storage_paths(Path(__file__))
+    StoragePathManager.ensure_directories(storage_paths)
+    
+    # 画像アップロードハンドラーの初期化
+    upload_handler = ImageUploadHandler(
+        storage_pic_dir=storage_paths['pic'],
+        storage_temp_dir=storage_paths['temp']
+    )
+    
+    # FilePickerの作成
+    pick_files_dialog = upload_handler.create_file_picker(page)
+    status_text = upload_handler.get_status_text()
 
     page.overlay.append(pick_files_dialog)
     content_button = ContentButton(page)
 
-    def on_segment_change(e: ft.ControlEvent):
+    def on_segment_change(event: ft.ControlEvent):
         try:
-            idx = int(e.data)
+            selected_index = int(event.data) if event.data else 0
         except Exception:
-            idx = 0
-        if idx == 0:
+            selected_index = 0
+        if selected_index == 0:
             selected_control.controls = [
                 ft.TextField(
                     adaptive=True,
@@ -96,13 +99,16 @@ def create_view1(page: ft.Page):
                     opacity_on_click=0.3,
                     on_click=lambda e: pick_files_dialog.pick_files(),
                 ),
-                selected_files,
+                status_text,
             ]
         else:
             selected_control.controls = [ft.Text("収入")]
         page.update()
 
-    on_segment_change(None)  # 初期表示の設定
+    # 初期表示の設定（ダミーイベントを作成）
+    class DummyEvent:
+        data = "0"
+    on_segment_change(DummyEvent())
 
     return ft.View(
         "/view1",

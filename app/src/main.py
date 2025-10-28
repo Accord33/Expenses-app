@@ -1,10 +1,10 @@
 import flet as ft
 from views import create_view1, create_view2, create_view3, create_category_detail
+from config import AppConfig
 import urllib.parse
-import dotenv
 
-dotenv.load_dotenv()
-
+# 環境変数の初期化
+AppConfig.setup_environment()
 
 
 def main(page: ft.Page):
@@ -32,4 +32,7 @@ def main(page: ft.Page):
     page.go("/view1")
 
 
-ft.app(target=main,upload_dir="uploads")
+ft.app(
+    target=main,
+    upload_dir=str(AppConfig.get_storage_dir())
+)
