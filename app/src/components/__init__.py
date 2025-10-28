@@ -3,4 +3,3 @@ from .image_upload import ImageUploadHandler
 
 __all__ = ['create_navigation_bar', 'ImageUploadHandler']
 
-__all__ = ["create_navigation_bar"]
