@@ -1,7 +1,7 @@
 import flet as ft
 from components.navigation import create_navigation_bar
-import shutil
-from datetime import datetime
+from components.image_upload import ImageUploadHandler
+from utils.storage import StoragePathManager
 from pathlib import Path
 
 
@@ -43,101 +43,29 @@ class ContentButton:
 def create_view1(page: ft.Page):
     selected_control = ft.Column()
     
-    # 画像保存先ディレクトリのパスを取得（プロジェクトルートからの相対パス）
-    current_file = Path(__file__)
-    storage_pic_dir = current_file.parent.parent.parent / "storage" / "pic"
-    storage_temp_dir = current_file.parent.parent.parent / "storage" / "temp"
+    # ストレージパスの取得と初期化
+    storage_paths = StoragePathManager.get_storage_paths(Path(__file__))
+    StoragePathManager.ensure_directories(storage_paths)
     
-    # ディレクトリが存在しない場合は作成
-    storage_pic_dir.mkdir(parents=True, exist_ok=True)
-    storage_temp_dir.mkdir(parents=True, exist_ok=True)
-
-    def on_upload_progress(e: ft.FilePickerUploadEvent):
-        """アップロード進行状況の表示"""
-        selected_files.value = f"アップロード中... {e.progress * 100:.0f}%" if e.progress else "アップロード中..."
-        selected_files.update()
-
-    def on_upload_complete(e: ft.FilePickerUploadEvent):
-        """アップロード完了後の処理"""
-        try:
-            # アップロードされたファイルのパス（tempディレクトリ内）
-            uploaded_file_name = e.file_name
-            temp_file_path = storage_temp_dir / uploaded_file_name
-            
-            if not temp_file_path.exists():
-                selected_files.value = f"✗ エラー: ファイルが見つかりません"
-                selected_files.update()
-                return
-            
-            # タイムスタンプ付きのファイル名を生成
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_extension = Path(uploaded_file_name).suffix
-            new_filename = f"{timestamp}{file_extension}"
-            
-            # 最終保存先のパス
-            destination_path = storage_pic_dir / new_filename
-            
-            # tempからpicにファイルを移動
-            shutil.move(str(temp_file_path), str(destination_path))
-            
-            # 成功メッセージ
-            selected_files.value = f"✓ 保存完了: {new_filename}"
-            print(f"画像を保存しました: {destination_path}")
-            
-        except Exception as ex:
-            selected_files.value = f"✗ エラー: {str(ex)}"
-            print(f"画像の保存に失敗しました: {ex}")
-        
-        selected_files.update()
-
-    def pick_files_result(e: ft.FilePickerResultEvent):
-        """ファイル選択後の処理"""
-        if not e.files:
-            selected_files.value = "キャンセルされました"
-            selected_files.update()
-            return
-        
-        try:
-            # 選択されたファイル
-            selected_files.value = f"選択: {e.files[0].name}"
-            selected_files.update()
-            
-            # 一時アップロード先のURLを生成して各ファイルに設定
-            upload_list = []
-            for f in e.files:
-                upload_url = page.get_upload_url(f"temp/{f.name}", 600)
-                upload_list.append(
-                    ft.FilePickerUploadFile(
-                        f.name,
-                        upload_url=upload_url,
-                    )
-                )
-            
-            # ファイルをアップロード
-            pick_files_dialog.upload(upload_list)
-            
-            print(f"ファイルのアップロードを開始: {e.files[0].name}")
-            
-        except Exception as ex:
-            selected_files.value = f"✗ エラー: {str(ex)}"
-            print(f"ファイルのアップロードに失敗しました: {ex}")
-            selected_files.update()
-
-    pick_files_dialog = ft.FilePicker(
-        on_result=pick_files_result,
-        on_upload=on_upload_complete
+    # 画像アップロードハンドラーの初期化
+    upload_handler = ImageUploadHandler(
+        storage_pic_dir=storage_paths['pic'],
+        storage_temp_dir=storage_paths['temp']
     )
-    selected_files = ft.Text()
+    
+    # FilePickerの作成
+    pick_files_dialog = upload_handler.create_file_picker(page)
+    status_text = upload_handler.get_status_text()
 
     page.overlay.append(pick_files_dialog)
     content_button = ContentButton(page)
 
-    def on_segment_change(e: ft.ControlEvent):
+    def on_segment_change(event: ft.ControlEvent):
         try:
-            idx = int(e.data)
+            selected_index = int(event.data) if event.data else 0
         except Exception:
-            idx = 0
-        if idx == 0:
+            selected_index = 0
+        if selected_index == 0:
             selected_control.controls = [
                 ft.TextField(
                     adaptive=True,
@@ -171,13 +99,16 @@ def create_view1(page: ft.Page):
                     opacity_on_click=0.3,
                     on_click=lambda e: pick_files_dialog.pick_files(),
                 ),
-                selected_files,
+                status_text,
             ]
         else:
             selected_control.controls = [ft.Text("収入")]
         page.update()
 
-    on_segment_change(None)  # 初期表示の設定
+    # 初期表示の設定（ダミーイベントを作成）
+    class DummyEvent:
+        data = "0"
+    on_segment_change(DummyEvent())
 
     return ft.View(
         "/view1",
