@@ -47,10 +47,57 @@ def create_view1(page: ft.Page):
     storage_paths = StoragePathManager.get_storage_paths(Path(__file__))
     StoragePathManager.ensure_directories(storage_paths)
     
-    # 画像アップロードハンドラーの初期化
+    # 入力フィールドの参照を保持
+    price_field = ft.TextField(
+        adaptive=True,
+        label="金額",
+        label_style=ft.TextStyle(color=ft.Colors.GREY_400),
+    )
+    date_field = ft.TextField(
+        adaptive=True,
+        label="日付：YYYYMMDD",
+        label_style=ft.TextStyle(color=ft.Colors.GREY_400),
+    )
+    
+    content_button = ContentButton(page)
+    
+    # Gemini解析完了時のコールバック関数
+    def on_analysis_complete(result: dict, image_path: Path):
+        """
+        Gemini解析完了時に呼ばれる関数
+        
+        Args:
+            result: 解析結果 {"price": str, "date": str, "category": str} or {"error": str}
+            image_path: 解析した画像のパス
+        """
+        if "error" in result:
+            print(f"解析エラー: {result['error']}")
+            return
+        
+        # フィールドに値を設定
+        price_field.value = result.get("price", "")
+        date_field.value = result.get("date", "")
+        
+        # カテゴリを設定
+        category = result.get("category", "")
+        category_map = {
+            "食費": 0,
+            "交通費": 1,
+            "娯楽費": 2,
+            "日用品": 3
+        }
+        if category in category_map:
+            content_button.focus_button(category_map[category])
+        
+        # 画面を更新
+        page.update()
+        print(f"解析結果を反映しました: {result}")
+    
+    # 画像アップロードハンドラーの初期化（コールバックを渡す）
     upload_handler = ImageUploadHandler(
         storage_pic_dir=storage_paths['pic'],
-        storage_temp_dir=storage_paths['temp']
+        storage_temp_dir=storage_paths['temp'],
+        on_analysis_complete=on_analysis_complete
     )
     
     # FilePickerの作成
@@ -58,7 +105,6 @@ def create_view1(page: ft.Page):
     status_text = upload_handler.get_status_text()
 
     page.overlay.append(pick_files_dialog)
-    content_button = ContentButton(page)
 
     def on_segment_change(event: ft.ControlEvent):
         try:
@@ -67,16 +113,8 @@ def create_view1(page: ft.Page):
             selected_index = 0
         if selected_index == 0:
             selected_control.controls = [
-                ft.TextField(
-                    adaptive=True,
-                    label="金額",
-                    label_style=ft.TextStyle(color=ft.Colors.GREY_400),
-                ),
-                ft.TextField(
-                    adaptive=True,
-                    label="日付：YYYYMMDD",
-                    label_style=ft.TextStyle(color=ft.Colors.GREY_400),
-                ),
+                price_field,
+                date_field,
                 ft.Container(
                     content=ft.Column(
                         [

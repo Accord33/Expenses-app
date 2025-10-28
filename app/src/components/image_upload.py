@@ -3,21 +3,24 @@ import flet as ft
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Callable, Optional
 
 
 class ImageUploadHandler:
     """画像アップロード処理を管理するクラス"""
     
-    def __init__(self, storage_pic_dir: Path, storage_temp_dir: Path):
+    def __init__(self, storage_pic_dir: Path, storage_temp_dir: Path, on_analysis_complete: Optional[Callable] = None):
         """
         Args:
             storage_pic_dir: 画像の最終保存先ディレクトリ
             storage_temp_dir: 一時アップロード先ディレクトリ
+            on_analysis_complete: 画像解析完了時のコールバック関数 (dict, Path) -> None
         """
         self.storage_pic_dir = storage_pic_dir
         self.storage_temp_dir = storage_temp_dir
         self.status_text = ft.Text()
         self.file_picker = None
+        self.on_analysis_complete = on_analysis_complete
     
     def on_upload_complete(self, event: ft.FilePickerUploadEvent) -> None:
         """
@@ -50,6 +53,24 @@ class ImageUploadHandler:
             # 成功メッセージ
             self.status_text.value = f"✓ 保存完了: {new_filename}"
             print(f"画像を保存しました: {destination_path}")
+            
+            # Gemini解析を実行（コールバックが設定されている場合）
+            if self.on_analysis_complete:
+                self.status_text.value = f"✓ 保存完了: {new_filename}\n🔍 解析中..."
+                self.status_text.update()
+                
+                # Gemini解析を呼び出し
+                from components.gemini_ptt import analyze_receipt_image
+                analysis_result = analyze_receipt_image(destination_path)
+                
+                # コールバック関数を呼び出し
+                self.on_analysis_complete(analysis_result, destination_path)
+                
+                # ステータスを更新
+                if "error" in analysis_result:
+                    self.status_text.value = f"✓ 保存完了\n✗ 解析エラー: {analysis_result['error']}"
+                else:
+                    self.status_text.value = f"✓ 保存完了\n✓ 解析完了"
             
         except Exception as ex:
             self.status_text.value = f"✗ エラー: {str(ex)}"
