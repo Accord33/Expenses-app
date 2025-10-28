@@ -18,12 +18,14 @@ class ContentButton:
                     content=ft.CupertinoButton(
                         content=ft.Text(
                             f"{name}",
-                            color=ft.CupertinoColors.BLACK,
+                            # ダークモードの時は白、ライトモードの時は黒
+                            color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK,
                         ),
                         opacity_on_click=0.3,
                         on_click=lambda e, idx=i: self.focus_button(idx),
                     ),
-                    border=ft.border.all(1, ft.Colors.BLACK),
+                    # デフォルトのボーダー色（非選択時）
+                    border=ft.border.all(1, ft.Colors.OUTLINE),
                     border_radius=10,
                 )
             )
@@ -31,9 +33,11 @@ class ContentButton:
         self.focus_button(self.focus_index)
 
     def focus_button(self, index: int):
-        self.button_list[self.focus_index].border = ft.border.all(1, ft.Colors.WHITE)
+        # 前回選択されていたボタンのボーダーをデフォルトに戻す
+        self.button_list[self.focus_index].border = ft.border.all(1, ft.Colors.OUTLINE)
         self.focus_index = index
-        self.button_list[index].border = ft.border.all(1, ft.Colors.BLUE)
+        # 選択されたボタンのボーダーを青色に
+        self.button_list[index].border = ft.border.all(2, ft.Colors.BLUE)
         self.page.update()
 
     def get_focused_content(self):
