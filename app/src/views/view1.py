@@ -193,7 +193,7 @@ def create_view1(page: ft.Page):
     def on_segment_change(event: ft.ControlEvent):
         try:
             selected_index = int(event.data) if event.data else 0
-        except Exception:
+        except ValueError:
             selected_index = 0
         on_segment_change_internal(selected_index)
 
