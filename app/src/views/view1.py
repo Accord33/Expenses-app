@@ -134,7 +134,6 @@ def create_view1(page: ft.Page):
         on_segment_change_internal(segment_button.selected_index)
         
         # 画面を更新
-        page.update()
         print(f"解析結果を反映しました: {result}")
 
     # 画像アップロードハンドラーの初期化（コールバックを渡す）
