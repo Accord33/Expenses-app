@@ -1,5 +1,5 @@
 import flet as ft
-from views import create_view1, create_view2, create_view3, create_category_detail
+from views import create_view1, create_view2, create_view3, create_view4, create_category_detail
 from config import AppConfig
 import urllib.parse
 
@@ -19,6 +19,9 @@ def main(page: ft.Page):
         elif handler.route == "/view3":
             page.views.clear()
             page.views.append(create_view3(page))
+        elif handler.route == "/view4":
+            page.views.clear()
+            page.views.append(create_view4(page))
         elif handler.route.startswith("/category_detail"):
             parsed_url = urllib.parse.urlparse(handler.route)
             query_params = urllib.parse.parse_qs(parsed_url.query)

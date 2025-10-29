@@ -12,6 +12,10 @@ def create_navigation_bar(page: ft.Page):
                 selected_icon=ft.Icons.BOOKMARK,
                 label="Input",
             ),
+            ft.NavigationBarDestination(
+                icon=ft.Icons.CAMERA_ALT,
+                label="読込",
+            ),
         ],
         on_change=lambda e: page.go(f"/view{e.control.selected_index + 1}"),
     )

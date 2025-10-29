@@ -1,8 +1,5 @@
 import flet as ft
 from components.navigation import create_navigation_bar
-from components.image_upload import ImageUploadHandler
-from utils.storage import StoragePathManager
-from pathlib import Path
 
 
 # カテゴリ定義
@@ -61,10 +58,6 @@ class ContentButton:
 def create_view1(page: ft.Page):
     selected_control = ft.Column()
 
-    # ストレージパスの取得と初期化
-    storage_paths = StoragePathManager.get_storage_paths(Path(__file__))
-    StoragePathManager.ensure_directories(storage_paths)
-
     # 入力フィールドの参照を保持
     price_field = ft.TextField(
         adaptive=True,
@@ -73,7 +66,7 @@ def create_view1(page: ft.Page):
     )
     date_field = ft.TextField(
         adaptive=True,
-        label="日付：YYYYMMDD",
+        label="日付:YYYYMMDD",
         label_style=ft.TextStyle(color=ft.Colors.GREY_400),
     )
 
@@ -95,19 +88,12 @@ def create_view1(page: ft.Page):
         ],
     )
 
-    # Gemini解析完了時のコールバック関数
-    def on_analysis_complete(result: dict, image_path: Path):
-        """
-        Gemini解析完了時に呼ばれる関数
-
-        Args:
-            result: 解析結果 {"price": str, "date": str, "category": str, "type": str} or {"error": str}
-            image_path: 解析した画像のパス
-        """
-        if "error" in result:
-            print(f"解析エラー: {result['error']}")
+    def apply_analysis_result():
+        """セッションから解析結果を取得して適用"""
+        result = page.session.get("analysis_result")
+        if not result:
             return
-
+        
         # フィールドに値を設定
         price_field.value = result.get("price", "")
         date_field.value = result.get("date", "")
@@ -133,21 +119,10 @@ def create_view1(page: ft.Page):
         # セグメント変更を反映
         on_segment_change_internal(segment_button.selected_index)
         
-        # 画面を更新
+        # セッションをクリア
+        page.session.remove("analysis_result")
+        
         print(f"解析結果を反映しました: {result}")
-
-    # 画像アップロードハンドラーの初期化（コールバックを渡す）
-    upload_handler = ImageUploadHandler(
-        storage_pic_dir=storage_paths["pic"],
-        storage_temp_dir=storage_paths["temp"],
-        on_analysis_complete=on_analysis_complete,
-    )
-
-    # FilePickerの作成
-    pick_files_dialog = upload_handler.create_file_picker(page)
-    status_text = upload_handler.get_status_text()
-
-    page.overlay.append(pick_files_dialog)
 
     def on_segment_change_internal(selected_index: int):
         """セグメント変更の内部処理"""
@@ -181,12 +156,6 @@ def create_view1(page: ft.Page):
                 content=ft.Text("　　　保存　　　"),
                 opacity_on_click=0.3,
             ),
-            ft.CupertinoFilledButton(
-                content=ft.Text("スクショから取り込み"),
-                opacity_on_click=0.3,
-                on_click=lambda e: pick_files_dialog.pick_files(),
-            ),
-            status_text,
         ]
         page.update()
 
@@ -202,6 +171,9 @@ def create_view1(page: ft.Page):
 
     # 初期表示の設定
     on_segment_change_internal(0)
+    
+    # セッションから解析結果を取得して適用
+    apply_analysis_result()
 
     return ft.View(
         "/view1",
